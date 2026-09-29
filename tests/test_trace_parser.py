@@ -46,6 +46,17 @@ class TraceParserTests(unittest.TestCase):
         self.assertTrue(result.transactions[0]["protocol_error"])
         self.assertEqual(result.violations[0]["message"], "PADDR changed during the transfer")
 
+    def test_rejects_non_increasing_cycle_numbers(self):
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            parse_trace_rows(
+                [
+                    {"cycle": 3, "psel": 0, "penable": 0, "pwrite": 0,
+                     "paddr": 0, "pwdata": 0, "prdata": 0, "pready": 0},
+                    {"cycle": 3, "psel": 0, "penable": 0, "pwrite": 0,
+                     "paddr": 0, "pwdata": 0, "prdata": 0, "pready": 0},
+                ]
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

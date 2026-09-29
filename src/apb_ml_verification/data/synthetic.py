@@ -23,7 +23,7 @@ def generate_trace(
     seed: int = 7,
     inject_anomalies: bool = False,
 ) -> list[dict[str, int]]:
-    """Generate legal APB transfers, optionally corrupting some addresses."""
+    """Generate legal APB transfers, optionally adding latency outliers."""
 
     if transactions < 1:
         raise ValueError("transactions must be at least 1")
@@ -63,20 +63,19 @@ def generate_trace(
         pwrite = rng.randrange(2)
         pwdata = rng.getrandbits(32) if pwrite else 0
         prdata = 0 if pwrite else rng.getrandbits(32)
-        wait_cycles = (index + paddr // 4 + pwrite) % 4
+        wait_cycles = (paddr // 256 + pwrite) % 4
+        if inject_anomalies and index % 29 == 0:
+            wait_cycles += 6
         pslverr = int(index > 0 and index % 97 == 0)
 
         append()
         append(1, 0, pwrite, paddr, pwdata, prdata, 0, pslverr)
         for access_index in range(wait_cycles + 1):
-            access_address = paddr
-            if inject_anomalies and index % 29 == 0 and access_index == 0:
-                access_address = (paddr + 4) % 1024
             append(
                 1,
                 1,
                 pwrite,
-                access_address,
+                paddr,
                 pwdata,
                 prdata,
                 int(access_index == wait_cycles),

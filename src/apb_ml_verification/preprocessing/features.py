@@ -7,17 +7,9 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 
-ANOMALY_FEATURES = [
-    "address",
-    "is_write",
-    "write_data",
-    "read_data",
-    "wait_cycles",
-    "pslverr",
-    "completed",
-    "protocol_error",
-]
-LATENCY_FEATURES = ["address", "is_write", "write_data"]
+REQUEST_FEATURES = ["address_region", "is_write"]
+ANOMALY_FEATURES = REQUEST_FEATURES
+LATENCY_FEATURES = REQUEST_FEATURES
 
 
 def transaction_frame(
@@ -29,8 +21,16 @@ def transaction_frame(
         raise ValueError("No APB transactions were found in the trace")
     frame = pd.DataFrame.from_records(transactions)
     missing = set(ANOMALY_FEATURES) - set(frame.columns)
+    if "address" not in frame.columns:
+        missing.add("address")
     if missing:
         raise ValueError(f"Transactions are missing features: {', '.join(sorted(missing))}")
-    for column in ANOMALY_FEATURES:
+    frame["address_region"] = (pd.to_numeric(frame["address"], errors="raise") >> 8).astype(int)
+    for column in set(ANOMALY_FEATURES) | {
+        "wait_cycles",
+        "completed",
+        "protocol_error",
+        "pslverr",
+    }:
         frame[column] = pd.to_numeric(frame[column], errors="raise")
     return frame

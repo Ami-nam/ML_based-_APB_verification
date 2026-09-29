@@ -79,6 +79,7 @@ def parse_trace_rows(rows: Iterable[Mapping[str, object]]) -> TraceParseResult:
     violations: list[dict[str, int | str]] = []
     active: dict[str, int | bool] | None = None
     access_cycles = 0
+    last_cycle: int | None = None
 
     def report(cycle: int, message: str) -> None:
         violations.append({"cycle": cycle, "message": message})
@@ -107,6 +108,12 @@ def parse_trace_rows(rows: Iterable[Mapping[str, object]]) -> TraceParseResult:
     for row_number, source_row in enumerate(rows, start=2):
         row = _normalize_row(source_row, row_number)
         cycle = row["cycle"]
+        if last_cycle is not None and cycle <= last_cycle:
+            raise ValueError(
+                f"cycle values must be strictly increasing; row {row_number} has {cycle} "
+                f"after {last_cycle}"
+            )
+        last_cycle = cycle
         selected = row["psel"] == 1
         access = row["penable"] == 1
 
