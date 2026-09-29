@@ -1,85 +1,41 @@
-# ML-based APB Verification
+# ML-Based APB Verification
 
-A machine learning-based system for verifying Automatic Packet Broker (APB) functionality and performance.
+An offline analysis toolkit for cycle-level AMBA APB traces. It combines deterministic protocol checks with lightweight machine-learning models for transaction anomaly detection and wait-state prediction.
 
-## Overview
+## Trace format
 
-This project implements machine learning algorithms to verify and validate APB (Automatic Packet Broker) systems. It includes packet classification, anomaly detection, and performance prediction models.
+Input is a CSV with one row per sampled clock cycle. Required columns are `cycle`, `psel`, `penable`, `pwrite`, `paddr`, `pwdata`, `prdata`, and `pready`. `pslverr` is optional. Signal names are case-insensitive; addresses and data may be decimal or `0x`-prefixed hexadecimal.
 
-## Project Structure
+The parser extracts completed transfers and flags malformed setup/access sequences, changed controls, incomplete transfers, and access without setup. The ML anomaly model is a secondary signal; deterministic protocol violations remain independently reported.
 
-```
-ML_based-_APB_verification/
-├── README.md
-├── requirements.txt
-├── setup.py
-├── config/
-│   └── config.yaml
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── datasets.py
-├── src/
-│   ├── __init__.py
-│   ├── preprocessing/
-│   │   ├── __init__.py
-│   │   ├── packet_parser.py
-│   │   └── feature_engineering.py
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── classifier.py
-│   │   ├── anomaly_detector.py
-│   │   └── predictor.py
-│   ├── verification/
-│   │   ├── __init__.py
-│   │   ├── verifier.py
-│   │   └── metrics.py
-│   └── utils/
-│       ├── __init__.py
-│       ├── logger.py
-│       └── helpers.py
-├── tests/
-│   ├── __init__.py
-│   ├── test_preprocessing.py
-│   ├── test_models.py
-│   └── test_verification.py
-├── notebooks/
-│   └── analysis.ipynb
-└── scripts/
-    ├── train.py
-    ├── evaluate.py
-    └── predict.py
-```
+## Quick start
 
-## Features
-
-- **Packet Classification**: Classify network packets using ML algorithms
-- **Anomaly Detection**: Detect unusual packet broker behavior
-- **Performance Prediction**: Predict APB performance metrics
-- **Verification Framework**: Validate APB system integrity
-
-## Installation
+Requires Python 3.10 or newer. On Ubuntu, if `venv` or `pip` is missing, install them first:
 
 ```bash
-pip install -r requirements.txt
-python setup.py install
+sudo apt update
+sudo apt install python3-venv python3-pip
 ```
 
-## Usage
+Then create the environment and install the project:
 
-See individual module documentation in `src/` directory.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python scripts/generate_sample.py --output data/train_trace.csv --seed 7
+python scripts/generate_sample.py --output data/eval_trace.csv --seed 29
+python scripts/train.py --trace data/train_trace.csv --model-dir models/artifacts
+python scripts/evaluate.py --trace data/eval_trace.csv --model-dir models/artifacts
+python scripts/predict.py --trace data/eval_trace.csv --model-dir models/artifacts
+python -m pytest
+```
 
-## Requirements
+## Commands
 
-- Python 3.8+
-- TensorFlow/PyTorch
-- Pandas, NumPy, Scikit-learn
-- See `requirements.txt` for full dependencies
+- `scripts/generate_sample.py`: create a reproducible synthetic APB waveform CSV.
+- `scripts/train.py`: fit and save an Isolation Forest anomaly detector and a wait-state regressor.
+- `scripts/evaluate.py`: print protocol and anomaly metrics for a trace.
+- `scripts/predict.py`: analyze a trace and write transaction-level predictions to CSV.
 
-## License
-
-MIT License
-
-## Author
-
-Ami-nam
+Models are trained on generated data by default; replace it with representative, correctly sampled APB traces before using predictions for engineering decisions. This toolkit does not replace simulation assertions or protocol sign-off.
